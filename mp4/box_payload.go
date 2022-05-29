@@ -6,6 +6,7 @@ import (
 	"io"
 )
 
+// Reads N bytes from current offset and returns buffer.
 func getNBytes(r io.ReadSeeker, n int64) (*bytes.Buffer, error) {
 	buffer := bytes.NewBuffer(make([]byte, 0, n))
 	_, err := io.CopyN(buffer, r, n)
@@ -16,11 +17,13 @@ func getNBytes(r io.ReadSeeker, n int64) (*bytes.Buffer, error) {
 	return buffer, nil
 }
 
+// Checks if Nth bit in byte is set.
 func checkNthBitSet(bits, n byte) bool {
 	res := bits & (1 << n)
 	return res != 0
 }
 
+// Handler Reference Box's payload structure.
 type HdlrPayload struct {
 	PreDefined uint32
 	Type       BoxType
@@ -28,6 +31,7 @@ type HdlrPayload struct {
 	Name       string
 }
 
+// Reads Handler Reference Box's payload and returns pointer to it.
 func (b *BoxInfo) readHdlr(r io.ReadSeeker) (*HdlrPayload, error) {
 	b.toPayload(r)
 
@@ -52,6 +56,7 @@ func (b *BoxInfo) readHdlr(r io.ReadSeeker) (*HdlrPayload, error) {
 	return &hdlr, nil
 }
 
+// Movie Header Box's payload structure.
 type MvhdPayload struct {
 	Version          byte
 	Flags            [3]byte
@@ -68,6 +73,7 @@ type MvhdPayload struct {
 	NextTrackId      uint32
 }
 
+// Reads Movie Header Box's payload and returns pointer to it.
 func (b *BoxInfo) readMvhd(r io.ReadSeeker) (*MvhdPayload, error) {
 	b.toPayload(r)
 
@@ -125,6 +131,7 @@ func (b *BoxInfo) readMvhd(r io.ReadSeeker) (*MvhdPayload, error) {
 	return &mvhd, nil
 }
 
+// Sample Description Box's payload structure.
 type StsdPayload struct {
 	Version byte
 	Flags   [3]byte
@@ -132,6 +139,7 @@ type StsdPayload struct {
 	Codecs  []*BoxInfo
 }
 
+// Reads Sample Description Box's payload and returns pointer to it.
 func (b *BoxInfo) readStsd(r io.ReadSeeker) (*StsdPayload, error) {
 	b.toPayload(r)
 
@@ -164,6 +172,7 @@ func (b *BoxInfo) readStsd(r io.ReadSeeker) (*StsdPayload, error) {
 
 }
 
+// Returns all codec config names within Sample Description Box.
 func (sp *StsdPayload) getCodecTypes() []string {
 	codecs := make([]string, 0)
 
@@ -174,6 +183,7 @@ func (sp *StsdPayload) getCodecTypes() []string {
 	return codecs
 }
 
+// Track Fragment Header Box's payload structure.
 type TfhdPayload struct {
 	Version                byte
 	Flags                  [3]byte
@@ -185,6 +195,7 @@ type TfhdPayload struct {
 	DefaultSampleFlags     uint32
 }
 
+// Reads Track Fragment Header Box's payload and returns pointer to it.
 func (b *BoxInfo) readTfhd(r io.ReadSeeker) (*TfhdPayload, error) {
 	b.toPayload(r)
 
@@ -232,6 +243,7 @@ func (b *BoxInfo) readTfhd(r io.ReadSeeker) (*TfhdPayload, error) {
 	return &tfhd, nil
 }
 
+// Track Header Box's payload structure.
 type TkhdPayload struct {
 	Version          byte
 	Flags            [3]byte
@@ -249,6 +261,7 @@ type TkhdPayload struct {
 	Height           uint32
 }
 
+// Reads Track Header Box's payload and returns pointer to it.
 func (b *BoxInfo) readTkhd(r io.ReadSeeker) (*TkhdPayload, error) {
 	b.toPayload(r)
 
@@ -305,6 +318,7 @@ func (b *BoxInfo) readTkhd(r io.ReadSeeker) (*TkhdPayload, error) {
 	return &tkhd, nil
 }
 
+// Struct for samples within Track Fragment Run Box.
 type Sample struct {
 	Duration              uint32
 	Size                  uint32
@@ -312,6 +326,7 @@ type Sample struct {
 	CompositionTimeOffset uint32
 }
 
+// Track Fragment Run Box's payload structure.
 type TrunPayload struct {
 	Version          byte
 	Flags            [3]byte
@@ -321,6 +336,7 @@ type TrunPayload struct {
 	Samples          []*Sample
 }
 
+// Reads Track Fragment Run Box's payload and returns pointer to it.
 func (b *BoxInfo) readTrun(r io.ReadSeeker) (*TrunPayload, error) {
 	b.toPayload(r)
 
@@ -381,6 +397,7 @@ func (b *BoxInfo) readTrun(r io.ReadSeeker) (*TrunPayload, error) {
 	return &trun, nil
 }
 
+// Returns summarized duration of all samples
 func (tp *TrunPayload) getDurationFromSamples() uint64 {
 	dur := uint64(0)
 	for _, s := range tp.Samples {

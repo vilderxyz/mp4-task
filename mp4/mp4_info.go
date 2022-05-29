@@ -2,7 +2,8 @@ package mp4
 
 import "io"
 
-type Mp4Info struct {
+// Represents necessary information about MP4 file.
+type Info struct {
 	MediaTypes  []string
 	Codecs      []string
 	VideoHeight uint32
@@ -10,15 +11,16 @@ type Mp4Info struct {
 	Duration    float64
 }
 
-func GetInfo(r io.ReadSeeker, bi *BoxInfo) (*Mp4Info, error) {
-	mp4s, err := getStruct(r, bi)
+// Returns all required information about MP4 file.
+func GetInfo(r io.ReadSeeker, bi *BoxInfo) (*Info, error) {
+	mp4s, err := getPayloads(r, bi)
 	if err != nil {
 		return nil, err
 	}
 
 	w, h := mp4s.getVideoResolution()
 
-	info := Mp4Info{
+	info := Info{
 		MediaTypes:  mp4s.getMediaTypes(),
 		Codecs:      mp4s.getSupportedCodecs(),
 		VideoWidth:  w,

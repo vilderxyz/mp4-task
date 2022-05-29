@@ -9,7 +9,9 @@ import (
 )
 
 func main() {
-	file, err := os.Open("./samples/s22.mp4")
+	// Enter valid path to mp4 file
+	// I'm sorry about lack of proper UI.
+	file, err := os.Open("./samples/s3.mp4")
 	if err != nil {
 		log.Fatal(err)
 	}

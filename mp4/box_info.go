@@ -11,14 +11,21 @@ const (
 	ExtendedHeaderSize = 16
 )
 
+// Main structure of the Box in this package. It's built from reading Box's header.
 type BoxInfo struct {
-	Type        BoxType
-	Size        uint64
-	Offset      uint64
-	HeaderSize  uint32
+	// Type of the Box. Built from subtype [4]byte.
+	Type BoxType
+	// Size of the Box. Summary of both header and payload bytes.
+	Size uint64
+	// Distance between the beginning of the Box and MP4 file.
+	Offset uint64
+	// Size of the Box's header.
+	HeaderSize uint32
+	// Is set to true if Box has other Boxes within its payload
 	HasChildren bool
 }
 
+// Reads Box's header from the current offset in the file and creates BoxInfo object.
 func readBoxInfo(r io.ReadSeeker) (*BoxInfo, error) {
 	offset, err := r.Seek(0, io.SeekCurrent)
 	if err != nil {
@@ -41,6 +48,7 @@ func readBoxInfo(r io.ReadSeeker) (*BoxInfo, error) {
 
 	bi.HasChildren = SupportedBoxTypes[bi.Type.toString()]
 
+	// If Box's size is equal to 0 then it is the last one in file.
 	if bi.Size == 0 {
 		eof, err := r.Seek(0, io.SeekEnd)
 
@@ -51,6 +59,7 @@ func readBoxInfo(r io.ReadSeeker) (*BoxInfo, error) {
 
 		bi.Size = uint64(eof) - bi.Offset
 
+		// If Box's size is equeal to 1 then its size extended and is stored in next 8 bytes.
 	} else if bi.Size == 1 {
 		buffer.Reset()
 
@@ -66,7 +75,8 @@ func readBoxInfo(r io.ReadSeeker) (*BoxInfo, error) {
 	return bi, nil
 }
 
-func (b *BoxInfo) readStructure(r io.ReadSeeker, i *Mp4Struct) (uint64, error) {
+// Reads Box's children or payload if specified. Otherwise returns only a Box's size and skips to the next one.
+func (b *BoxInfo) readStructure(r io.ReadSeeker, i *ReadPayloads) (uint64, error) {
 	err := b.readPayload(r, i)
 	if err != nil {
 		return b.Size, err
@@ -78,37 +88,42 @@ func (b *BoxInfo) readStructure(r io.ReadSeeker, i *Mp4Struct) (uint64, error) {
 	}
 
 	currentOffset := uint64(b.HeaderSize)
-	var offset uint64
 
+	// Loops through all children and stops when their summarize size is equal to this Box's size.
 	for currentOffset < b.Size {
 		bi, err := readBoxInfo(r)
 		if err != nil {
 			return 0, err
 		}
 
+		var size uint64
+
 		if _, ok := SupportedBoxTypes[bi.Type.toString()]; ok {
 			// bi.Print()
 
-			offset, err = bi.readStructure(r, i)
+			size, err = bi.readStructure(r, i)
 			if err != nil {
-				return offset, err
+				return size, err
 			}
 		} else {
 			bi.toNextBox(r)
-			offset = bi.Size
+			size = bi.Size
 		}
 
-		currentOffset += offset
+		currentOffset += size
 	}
 
 	return currentOffset, nil
 }
 
-func (b *BoxInfo) readPayload(r io.ReadSeeker, i *Mp4Struct) error {
+// Commits different actions on Box's payload according to its type.
+func (b *BoxInfo) readPayload(r io.ReadSeeker, i *ReadPayloads) error {
 	switch b.Type.toString() {
+	// Appends new MovieFragment object to the slice. Sub-Boxes can them refer to it and pass references to their payloads.
 	case "traf":
 		i.MovieFragments = append(i.MovieFragments, &MovieFragment{})
 		return nil
+	// Appends new Track object to the slice. Sub-Boxes can them refer to it and pass references to their payloads.
 	case "trak":
 		i.Tracks = append(i.Tracks, &Track{})
 		return nil
@@ -165,14 +180,17 @@ func (b *BoxInfo) readPayload(r io.ReadSeeker, i *Mp4Struct) error {
 	}
 }
 
+// Prints BoxInfo variables.
 func (bi *BoxInfo) Print() {
-	fmt.Printf("Type: %s, offset: %d, size: %d\n", bi.Type.toString(), bi.Offset, bi.Size)
+	fmt.Printf("Type: %s, offset: %d, size: %d, header's size: %d, children: %v\n", bi.Type.toString(), bi.Offset, bi.Size, bi.HeaderSize, bi.HasChildren)
 }
 
+// Skips Box's content and sets offset to the next Box.
 func (bi *BoxInfo) toNextBox(s io.Seeker) (int64, error) {
 	return s.Seek(int64(bi.Offset+bi.Size), io.SeekStart)
 }
 
+// Sets offset to Box's payload.
 func (bi *BoxInfo) toPayload(s io.Seeker) (int64, error) {
 	return s.Seek(int64(bi.Offset+uint64(bi.HeaderSize)), io.SeekStart)
 }

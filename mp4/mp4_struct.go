@@ -4,25 +4,29 @@ import (
 	"io"
 )
 
+// Represents single Track within Movie Box.
 type Track struct {
 	TrackHeader       *TkhdPayload
 	MediaHandler      *HdlrPayload
 	SampleDescription *StsdPayload
 }
 
+// Represents a single MovieFragment that extends the presentation in time.
 type MovieFragment struct {
 	TrackFragmentHeader *TfhdPayload
 	TrackFragmentRun    *TrunPayload
 }
 
-type Mp4Struct struct {
+// Represents all read playloads and provide access to them at every level.
+type ReadPayloads struct {
 	MovieHeader    *MvhdPayload
 	Tracks         []*Track
 	MovieFragments []*MovieFragment
 }
 
-func getStruct(r io.ReadSeeker, bi *BoxInfo) (*Mp4Struct, error) {
-	rs := Mp4Struct{}
+// Reads MP4 file boxes, stores all read payloads in struct and returns pointer to it.
+func getPayloads(r io.ReadSeeker, bi *BoxInfo) (*ReadPayloads, error) {
+	rs := ReadPayloads{}
 
 	_, err := bi.readStructure(r, &rs)
 	if err != nil {
@@ -32,7 +36,8 @@ func getStruct(r io.ReadSeeker, bi *BoxInfo) (*Mp4Struct, error) {
 	return &rs, nil
 }
 
-func (s *Mp4Struct) getMediaTypes() []string {
+// Returns all media types within file.
+func (s *ReadPayloads) getMediaTypes() []string {
 	types := []string{}
 
 	for _, t := range s.Tracks {
@@ -42,7 +47,8 @@ func (s *Mp4Struct) getMediaTypes() []string {
 	return types
 }
 
-func (s *Mp4Struct) getSupportedCodecs() []string {
+// Returns all supported codecs.
+func (s *ReadPayloads) getSupportedCodecs() []string {
 	codecs := []string{}
 
 	for _, t := range s.Tracks {
@@ -52,7 +58,8 @@ func (s *Mp4Struct) getSupportedCodecs() []string {
 	return codecs
 }
 
-func (s *Mp4Struct) getVideoResolution() (w uint32, h uint32) {
+// Returns video resolution.
+func (s *ReadPayloads) getVideoResolution() (w uint32, h uint32) {
 	for _, t := range s.Tracks {
 		if t.MediaHandler.Type.toString() == "vide" {
 			w = t.TrackHeader.Width
@@ -64,7 +71,8 @@ func (s *Mp4Struct) getVideoResolution() (w uint32, h uint32) {
 	return 0, 0
 }
 
-func (s *Mp4Struct) getDuration() float64 {
+// Returns presentation duration.
+func (s *ReadPayloads) getDuration() float64 {
 	d := uint64(0)
 
 	d += s.MovieHeader.Duration

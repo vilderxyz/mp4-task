@@ -1,5 +1,6 @@
 package mp4
 
+// All supported Boxes and if they have other boxes within.
 var SupportedBoxTypes = map[string]bool{
 	"moov": true,
 	"mvhd": false,
@@ -19,6 +20,7 @@ var SupportedBoxTypes = map[string]bool{
 
 type BoxType [4]byte
 
+// Returns Box's type as string.
 func (bt BoxType) toString() string {
 	return string([]byte{bt[0], bt[1], bt[2], bt[3]})
 }
